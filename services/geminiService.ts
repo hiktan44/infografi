@@ -15,6 +15,15 @@ export interface InfographicResult {
     citations: Citation[];
 }
 
+const handleApiError = (error: any) => {
+    console.error("Gemini API Error:", error);
+    if (error?.message?.includes("Requested entity was not found")) {
+        // Reset key selection if the key is invalid or doesn't have permissions
+        window.dispatchEvent(new CustomEvent('reset-api-key'));
+    }
+    throw error;
+};
+
 export async function generateInfographic(
   repoName: string, 
   fileTree: RepoFileTree[], 
@@ -52,7 +61,7 @@ export async function generateInfographic(
       }
       
       if (aspectRatio === "9:16") {
-          dimensionPrompt = "LAYOUT: Long-form vertical infographic. Structure it like two full pages of content stacked vertically. Use huge headings.";
+          dimensionPrompt = "LAYOUT: Long-form vertical infographic. Structure it like two full pages of content stacked vertically. Use huge headings and multiple sections.";
       } else {
           dimensionPrompt = "LAYOUT: Horizontal landscape arrangement. Wide view.";
       }
@@ -105,8 +114,7 @@ export async function generateInfographic(
     }
     return null;
   } catch (error) {
-    console.error("Gemini infographic generation failed:", error);
-    throw error;
+    return handleApiError(error);
   }
 }
 
@@ -126,7 +134,7 @@ export async function generateArticleInfographic(
     try {
         const analysisPrompt = `Extract essential structure from: ${url}
         TARGET LANGUAGE: ${language}.
-        Provide: 1. Headline, 2. Detailed Key Takeaways (split into 2 pages/sections worth of info), 3. Supporting data, 4. Visual metaphor idea.`;
+        Provide: 1. Headline, 2. Detailed Key Takeaways (split into 2 pages/sections worth of info for long vertical layout), 3. Supporting data, 4. Visual metaphor idea.`;
 
         const analysisResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -147,7 +155,7 @@ export async function generateArticleInfographic(
             citations = Array.from(uniqueCitations.values());
         }
     } catch (e) {
-        structuralSummary = `Create an infographic about: ${url}. Translate text to ${language}.`;
+        structuralSummary = `Create a deep, 2-page length infographic about: ${url}. Translate text to ${language}.`;
     }
 
     return await finalizeInfographic(structuralSummary, style, onProgress, language, aspectRatio);
@@ -160,16 +168,15 @@ export async function generateInfographicFromText(
   language: string = "Turkish",
   aspectRatio: "16:9" | "9:16" = "9:16"
 ): Promise<InfographicResult> {
-    const ai = getAiClient();
     if (onProgress) onProgress("METİN ANALİZ EDİLİYOR...");
-
+    const ai = getAiClient();
     let structuralSummary = "";
 
     try {
-        const analysisPrompt = `Analyze text and create structure for infographic:
+        const analysisPrompt = `Analyze text and create structure for a long-form infographic:
         TEXT: ${text}
         TARGET LANGUAGE: ${language}.
-        Provide: 1. Headline, 2. Key Takeaways (Long form), 3. Supporting Data, 4. Visual Metaphor.`;
+        Provide: 1. Headline, 2. Detailed Key Takeaways (Expanded for 2-page length), 3. Supporting Data, 4. Visual Metaphor.`;
 
         const analysisResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -192,15 +199,14 @@ export async function generateInfographicFromFile(
   language: string = "Turkish",
   aspectRatio: "16:9" | "9:16" = "9:16"
 ): Promise<InfographicResult> {
-    const ai = getAiClient();
     if (onProgress) onProgress("DOSYADAN BİLGİ ÇIKARILIYOR...");
-
+    const ai = getAiClient();
     let structuralSummary = "";
 
     try {
-        const analysisPrompt = `Extract core message from file for an infographic.
+        const analysisPrompt = `Extract core message from file for a deep, long-form infographic.
         TARGET LANGUAGE: ${language}.
-        Provide: Headline, Detailed Key Takeaways (Long-form), Supporting Data, Visual Metaphor.`;
+        Provide: Headline, Detailed Key Takeaways (2-page deep content), Supporting Data, Visual Metaphor.`;
 
         const analysisResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -253,41 +259,45 @@ async function finalizeInfographic(
     }
 
     const imagePrompt = `Create a professional, high-quality 2K infographic.
-    LAYOUT: ${aspectRatio === "16:9" ? "Horizontal (Landscape)" : "Vertical (Portrait, Long-form 2-page depth)"}.
+    LAYOUT: ${aspectRatio === "16:9" ? "Horizontal (Landscape)" : "Vertical (Long-form 2-page deep vertical flow)"}.
     CONTENT PLAN: ${structuralSummary}
     CRITICAL TYPOGRAPHY RULE:
     - USE ULTRA-MASSIVE, BOLD, AND VERY THICK FONTS.
-    - TEXT MUST BE COMPLETELY READABLE ON SMALL SMARTPHONE SCREENS WITHOUT ZOOMING.
-    - DRAMATICALLY INCREASE FONT SIZE FOR ALL LABELS.
+    - TEXT MUST BE COMPLETELY READABLE ON SMALL SMARTPHONE SCREENS WITHOUT ANY ZOOMING.
+    - DRAMATICALLY INCREASE FONT SIZE FOR ALL LABELS AND HEADERS.
     VISUAL RULES:
     - ${styleGuidelines}
     - LANGUAGE: All text in image MUST be ${language}.
-    - RESOLUTION: Sharp details, 2K quality. Large format.
-    - GOAL: Professional, easy to read on mobile, long-form content.`;
+    - RESOLUTION: Sharp details, 2K quality. Extra tall format for 9:16.
+    - GOAL: Professional, easy to read on mobile, deep content flow.`;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
-        contents: { parts: [{ text: imagePrompt }] },
-        config: { 
-            responseModalities: [Modality.IMAGE],
-            imageConfig: {
-                aspectRatio: aspectRatio,
-                imageSize: "2K"
-            }
-        },
-    });
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-image-preview',
+            contents: { parts: [{ text: imagePrompt }] },
+            config: { 
+                responseModalities: [Modality.IMAGE],
+                imageConfig: {
+                    aspectRatio: aspectRatio,
+                    imageSize: "2K"
+                }
+            },
+        });
 
-    let imageData = null;
-    const parts = response.candidates?.[0]?.content?.parts;
-    if (parts) {
-        for (const part of parts) {
-            if (part.inlineData && part.inlineData.data) {
-                imageData = part.inlineData.data;
-                break;
+        let imageData = null;
+        const parts = response.candidates?.[0]?.content?.parts;
+        if (parts) {
+            for (const part of parts) {
+                if (part.inlineData && part.inlineData.data) {
+                    imageData = part.inlineData.data;
+                    break;
+                }
             }
         }
+        return { imageData, citations: [] };
+    } catch (error) {
+        return handleApiError(error);
     }
-    return { imageData, citations: [] };
 }
 
 export async function askNodeSpecificQuestion(
@@ -309,8 +319,7 @@ export async function askNodeSpecificQuestion(
     });
     return response.text || "Şu an bir cevap oluşturulamadı.";
   } catch (error) {
-    console.error("Gemini Node Q&A failed:", error);
-    throw error;
+    return handleApiError(error);
   }
 }
 
@@ -338,7 +347,6 @@ export async function editImageWithGemini(base64Data: string, mimeType: string, 
     }
     return null;
   } catch (error) {
-    console.error("Gemini image editing failed:", error);
-    throw error;
+    return handleApiError(error);
   }
 }

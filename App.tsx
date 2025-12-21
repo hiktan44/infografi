@@ -32,6 +32,13 @@ const App: React.FC = () => {
       setCheckingKey(false);
     };
     checkKey();
+
+    // Listen for global API key reset requests (from services)
+    const handleKeyReset = () => {
+        setHasApiKey(false);
+    };
+    window.addEventListener('reset-api-key', handleKeyReset);
+    return () => window.removeEventListener('reset-api-key', handleKeyReset);
   }, []);
 
   const handleIntroComplete = () => {
