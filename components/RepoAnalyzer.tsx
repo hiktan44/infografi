@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -5,9 +6,9 @@
 
 import React, { useState } from 'react';
 import { fetchRepoFileTree } from '../services/githubService';
-import { generateInfographic } from '../services/geminiService';
+import { generateInfographic, analyzeRepoFeatures, generateRepoFunctionalInfographic } from '../services/geminiService';
 import { RepoFileTree, ViewMode, RepoHistoryItem } from '../types';
-import { AlertCircle, Loader2, Layers, Box, Download, Sparkles, Command, Palette, Globe, Clock, Maximize, KeyRound, Smartphone, Monitor } from 'lucide-react';
+import { AlertCircle, Loader2, Layers, Box, Download, Sparkles, Command, Palette, Globe, Clock, Maximize, KeyRound, Smartphone, Monitor, Terminal, Code2, Cpu, Rocket } from 'lucide-react';
 import { LoadingState } from './LoadingState';
 import ImageViewer from './ImageViewer';
 
@@ -29,6 +30,7 @@ const LANGUAGES = [
   { label: "Türkçe (Türkiye)", value: "Turkish" },
   { label: "English (US)", value: "English" },
   { label: "Deutsch (Germany)", value: "German" },
+  { label: "Español (Spain)", value: "Spanish" },
 ];
 
 const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddToHistory }) => {
@@ -41,7 +43,9 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
   const [loadingStage, setLoadingStage] = useState<string>('');
   
   const [infographicData, setInfographicData] = useState<string | null>(null);
-  const [infographic3DData, setInfographic3DData] = useState<string | null>(null);
+  const [functionalInfographicData, setFunctionalInfographicData] = useState<string | null>(null);
+  const [repoFeatures, setRepoFeatures] = useState<string | null>(null);
+  
   const [generating3D, setGenerating3D] = useState(false);
   const [currentFileTree, setCurrentFileTree] = useState<RepoFileTree[] | null>(null);
   const [currentRepoName, setCurrentRepoName] = useState<string>('');
@@ -66,7 +70,8 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
     e.preventDefault();
     setError(null);
     setInfographicData(null);
-    setInfographic3DData(null);
+    setFunctionalInfographicData(null);
+    setRepoFeatures(null);
 
     const repoDetails = parseRepoInput(repoInput);
     if (!repoDetails) {
@@ -82,10 +87,22 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
       if (fileTree.length === 0) throw new Error('İlgili dosya bulunamadı.');
       setCurrentFileTree(fileTree);
 
-      setLoadingStage('ANALİZ EDİLİYOR VE OLUŞTURULUYOR');
-      const data = await generateInfographic(repoDetails.repo, fileTree, selectedStyle, false, selectedLanguage, aspectRatio);
-      if (data) setInfographicData(data);
-      else throw new Error("Görsel oluşturulamadı.");
+      setLoadingStage('ANALİZ EDİLİYOR VE GÖRSELLEŞTİRİLİYOR');
+      
+      // Run visual generations and text analysis in parallel
+      const [imgData, functionalImgData, featuresText] = await Promise.all([
+          generateInfographic(repoDetails.repo, fileTree, selectedStyle, false, selectedLanguage, aspectRatio),
+          generateRepoFunctionalInfographic(repoDetails.repo, fileTree, selectedStyle, selectedLanguage, aspectRatio),
+          analyzeRepoFeatures(repoDetails.repo, fileTree, selectedLanguage)
+      ]);
+
+      if (imgData) setInfographicData(imgData);
+      else throw new Error("Teknik görsel oluşturulamadı.");
+      
+      if (functionalImgData) setFunctionalInfographicData(functionalImgData);
+
+      if (featuresText) setRepoFeatures(featuresText);
+
     } catch (err: any) {
       setError(err.message || 'Hata oluştu.');
     } finally {
@@ -99,7 +116,9 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
     setGenerating3D(true);
     try {
       const data = await generateInfographic(currentRepoName, currentFileTree, selectedStyle, true, selectedLanguage, "16:9");
-      if (data) setInfographic3DData(data);
+      if (data) {
+          setFullScreenImage({src: `data:image/png;base64,${data}`, alt: "3D Holografik Model"});
+      }
     } catch (err: any) {
       setError(err.message || '3D hata oluştu.');
     } finally {
@@ -108,7 +127,7 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12 mb-24">
+    <div className="max-w-7xl mx-auto space-y-12 mb-24">
       
       {fullScreenImage && (
           <ImageViewer src={fullScreenImage.src} alt={fullScreenImage.alt} onClose={() => setFullScreenImage(null)} />
@@ -165,6 +184,9 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
                         YATAY
                     </button>
                  </div>
+                 <select value={selectedLanguage} onChange={(e) => setSelectedLanguage(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white mt-2">
+                     {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                 </select>
              </div>
           </div>
         </form>
@@ -174,40 +196,90 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
 
       {infographicData && !loading && (
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="glass-panel rounded-3xl p-2 bg-white/5 border border-white/20 shadow-2xl">
-                 <div className="px-6 py-4 flex items-center justify-between border-b border-white/10 mb-2">
-                    <h3 className="text-[10px] font-black text-white font-mono uppercase tracking-[0.2em]">Diyagram (2K)</h3>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setFullScreenImage({src: `data:image/png;base64,${infographicData}`, alt: "Diyagram"})} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white">
-                        <Maximize className="w-4 h-4" />
-                      </button>
-                      <a href={`data:image/png;base64,${infographicData}`} download={`${currentRepoName}-mimari.png`} className="bg-white text-slate-950 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase">İNDİR</a>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Sol Kolon: Metin Özeti */}
+              <div className="lg:col-span-1 space-y-6 h-fit">
+                {repoFeatures && (
+                    <div className="glass-panel rounded-3xl p-6 bg-slate-950/50 border border-white/10 shadow-xl relative overflow-hidden animate-in fade-in slide-in-from-left-4">
+                       <div className="absolute top-0 right-0 p-12 bg-orange-500/5 rounded-full blur-2xl -mr-6 -mt-6"></div>
+                       <div className="relative z-10">
+                           <div className="flex items-center gap-2 text-orange-400 font-mono text-xs uppercase tracking-widest border-b border-white/10 pb-4 mb-4 font-black">
+                               <Terminal className="w-4 h-4" /> Mimari Özeti
+                           </div>
+                           <div className="prose prose-invert prose-sm">
+                               <div className="text-slate-300 whitespace-pre-wrap leading-relaxed font-sans text-sm">
+                                   {repoFeatures}
+                               </div>
+                           </div>
+                           <div className="mt-6 pt-4 border-t border-white/5 flex gap-2">
+                                <div className="p-2 bg-white/5 rounded-lg border border-white/5" title="Code">
+                                    <Code2 className="w-4 h-4 text-slate-500" />
+                                </div>
+                                <div className="p-2 bg-white/5 rounded-lg border border-white/5" title="Hardware">
+                                    <Cpu className="w-4 h-4 text-slate-500" />
+                                </div>
+                           </div>
+                       </div>
                     </div>
-                </div>
-                <div className={`rounded-xl overflow-hidden bg-white mx-auto ${aspectRatio === "9:16" ? "max-w-xs" : "max-w-full"}`}>
-                    <img src={`data:image/png;base64,${infographicData}`} alt="Diyagram" className="w-full h-auto block" />
-                </div>
+                )}
               </div>
 
-              <div className="glass-panel rounded-3xl p-2 bg-white/5 border border-white/20 shadow-2xl flex flex-col">
-                 <div className="px-6 py-4 flex items-center justify-between border-b border-white/10 mb-2">
-                    <h3 className="text-[10px] font-black text-white font-mono uppercase tracking-[0.2em]">Holografik Model (3D)</h3>
-                </div>
-                <div className="flex-1 rounded-xl overflow-hidden bg-slate-950/50 relative flex items-center justify-center min-h-[300px]">
-                  {infographic3DData ? (
-                      <img src={`data:image/png;base64,${infographic3DData}`} alt="3D" className="w-full h-auto object-contain p-4" />
-                  ) : generating3D ? (
-                    <div className="text-center space-y-4">
-                         <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto" />
-                         <p className="text-[10px] text-orange-400 font-mono animate-pulse uppercase">Oluşturuluyor...</p>
+              {/* Sağ Kolon: Görsel İçerikler (Teknik & Fonksiyonel) */}
+              <div className="lg:col-span-2 space-y-8">
+                  {/* Teknik Diyagram */}
+                  <div className="glass-panel rounded-3xl p-2 bg-white/5 border border-white/20 shadow-2xl">
+                    <div className="px-6 py-4 flex items-center justify-between border-b border-white/10 mb-2">
+                        <h3 className="text-[10px] font-black text-white font-mono uppercase tracking-[0.2em]">Teknik Mimari</h3>
+                        <div className="flex items-center gap-2">
+                        
+                        {/* 3D Butonu - Sadece Tercih */}
+                        <button 
+                            onClick={handleGenerate3D} 
+                            disabled={generating3D}
+                            className="bg-white/10 hover:bg-orange-500 hover:text-white text-slate-300 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-2"
+                        >
+                            {generating3D ? <Loader2 className="w-3 h-3 animate-spin" /> : <Box className="w-3 h-3" />}
+                            3D Model
+                        </button>
+
+                        <div className="w-px h-4 bg-white/10 mx-1"></div>
+
+                        <button onClick={() => setFullScreenImage({src: `data:image/png;base64,${infographicData}`, alt: "Teknik Mimari"})} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white">
+                            <Maximize className="w-4 h-4" />
+                        </button>
+                        <a href={`data:image/png;base64,${infographicData}`} download={`${currentRepoName}-mimari.png`} className="bg-white text-slate-950 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase">İNDİR</a>
+                        </div>
                     </div>
-                  ) : (
-                    <button onClick={handleGenerate3D} className="px-8 py-3 bg-orange-500 text-white rounded-xl font-black transition-all flex items-center gap-2 font-mono text-xs shadow-lg uppercase">
-                      <Sparkles className="w-4 h-4" /> 3D_MODEL_OLUŞTUR
-                    </button>
-                  )}
-                </div>
+                    <div className={`rounded-xl overflow-hidden bg-white mx-auto ${aspectRatio === "9:16" ? "max-w-xs" : "max-w-full"}`}>
+                        <img src={`data:image/png;base64,${infographicData}`} alt="Diyagram" className="w-full h-auto block" />
+                    </div>
+                  </div>
+
+                  {/* Fonksiyonel/Özellik İnfografiği */}
+                  <div className="glass-panel rounded-3xl p-2 bg-white/5 border border-white/20 shadow-2xl">
+                    <div className="px-6 py-4 flex items-center justify-between border-b border-white/10 mb-2">
+                        <div className="flex items-center gap-2">
+                            <Rocket className="w-4 h-4 text-emerald-400" />
+                            <h3 className="text-[10px] font-black text-white font-mono uppercase tracking-[0.2em]">Uygulama Özellikleri</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => setFullScreenImage({src: `data:image/png;base64,${functionalInfographicData}`, alt: "Uygulama Özellikleri"})} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white">
+                                <Maximize className="w-4 h-4" />
+                            </button>
+                            <a href={`data:image/png;base64,${functionalInfographicData}`} download={`${currentRepoName}-ozellikler.png`} className="bg-white text-slate-950 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase">İNDİR</a>
+                        </div>
+                    </div>
+                    <div className={`rounded-xl overflow-hidden bg-white mx-auto ${aspectRatio === "9:16" ? "max-w-xs" : "max-w-full"}`}>
+                        {functionalInfographicData ? (
+                            <img src={`data:image/png;base64,${functionalInfographicData}`} alt="Uygulama Özellikleri" className="w-full h-auto block" />
+                        ) : (
+                            <div className="h-[300px] flex items-center justify-center text-slate-500 font-mono text-xs">
+                                Görsel oluşturulamadı.
+                            </div>
+                        )}
+                    </div>
+                  </div>
               </div>
           </div>
         </div>

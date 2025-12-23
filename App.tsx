@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -6,11 +7,13 @@
 import React, { useState, useEffect } from 'react';
 import RepoAnalyzer from './components/RepoAnalyzer';
 import ArticleToInfographic from './components/ArticleToInfographic';
+import YoutubeToInfographic from './components/YoutubeToInfographic';
 import Home from './components/Home';
+import Pricing from './components/Pricing';
 import IntroAnimation from './components/IntroAnimation';
 import ApiKeyModal from './components/ApiKeyModal';
 import { ViewMode, RepoHistoryItem, ArticleHistoryItem } from './types';
-import { Github, PenTool, GitBranch, FileText, Home as HomeIcon, CreditCard } from 'lucide-react';
+import { Github, PenTool, GitBranch, FileText, Home as HomeIcon, CreditCard, DollarSign, Youtube } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME);
@@ -33,7 +36,6 @@ const App: React.FC = () => {
     };
     checkKey();
 
-    // Listen for global API key reset requests (from services)
     const handleKeyReset = () => {
         setHasApiKey(false);
     };
@@ -47,6 +49,11 @@ const App: React.FC = () => {
 
   const handleNavigate = (mode: ViewMode) => {
     setCurrentView(mode);
+  };
+
+  const handlePaymentSimulation = (plan: string) => {
+      alert(`${plan} planı seçildi. Gerçek bir senaryoda burada Stripe Checkout sayfası açılacaktır.`);
+      setCurrentView(ViewMode.HOME);
   };
 
   const handleAddRepoHistory = (item: RepoHistoryItem) => {
@@ -64,11 +71,10 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col">
       {!hasApiKey && <ApiKeyModal onKeySelected={() => setHasApiKey(true)} />}
-
       {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
 
       <header className="sticky top-4 z-50 mx-auto w-[calc(100%-2rem)] md:w-[calc(100%-4rem)] max-w-6xl">
-        <div className="glass-panel rounded-2xl px-6 py-4 flex justify-between items-center bg-white/5 border-white/20">
+        <div className="glass-panel rounded-2xl px-6 py-4 flex justify-between items-center bg-white/5 border-white/10">
           <button 
             onClick={() => setCurrentView(ViewMode.HOME)}
             className="flex items-center gap-4 group transition-opacity hover:opacity-80"
@@ -78,16 +84,17 @@ const App: React.FC = () => {
             </div>
             <div className="text-left">
               <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight font-sans">
-                Link2Ink <span className="text-sm font-mono text-white/50 hidden sm:inline-block">Studio</span>
+                Link2Ink <span className="text-orange-500">Stüdyo</span>
               </h1>
             </div>
           </button>
           <div className="flex items-center gap-4">
-            {hasApiKey && (
-                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold text-white font-mono uppercase tracking-widest cursor-help" title="API Anahtarı Aktif">
-                    <CreditCard className="w-3 h-3" /> Premium Plan
-                </div>
-            )}
+            <button 
+              onClick={() => setCurrentView(ViewMode.PRICING)}
+              className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold text-white font-mono uppercase tracking-widest hover:bg-white/10 transition-all"
+            >
+                <DollarSign className="w-3 h-3 text-orange-400" /> Fiyatlandırma
+            </button>
             <a 
               href="https://github.com" 
               target="_blank" 
@@ -131,7 +138,18 @@ const App: React.FC = () => {
                 }`}
                 >
                 <FileText className="w-4 h-4" />
-                <span className="hidden sm:inline">SiteTaslağı</span>
+                <span className="hidden sm:inline">İnfografikçi</span>
+                </button>
+                <button
+                onClick={() => setCurrentView(ViewMode.YOUTUBE_INFOGRAPHIC)}
+                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-full font-black text-xs transition-all duration-300 font-mono ${
+                    currentView === ViewMode.YOUTUBE_INFOGRAPHIC
+                    ? 'text-red-100 bg-red-600/20 border border-red-500/30'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                >
+                <Youtube className="w-4 h-4" />
+                <span className="hidden sm:inline">VideoAnaliz</span>
                 </button>
             </div>
             </div>
@@ -140,6 +158,9 @@ const App: React.FC = () => {
         <div className="flex-1">
             {currentView === ViewMode.HOME && (
                 <Home onNavigate={handleNavigate} />
+            )}
+            {currentView === ViewMode.PRICING && (
+                <Pricing onSelectPlan={handlePaymentSimulation} />
             )}
             {currentView === ViewMode.REPO_ANALYZER && (
                 <div className="animate-in fade-in duration-500">
@@ -158,6 +179,11 @@ const App: React.FC = () => {
                     />
                 </div>
             )}
+            {currentView === ViewMode.YOUTUBE_INFOGRAPHIC && (
+                <div className="animate-in fade-in duration-500">
+                    <YoutubeToInfographic />
+                </div>
+            )}
         </div>
       </main>
 
@@ -166,9 +192,12 @@ const App: React.FC = () => {
           <p className="text-xs font-mono text-slate-500">
             <span className="text-white">link</span>:<span className="text-orange-500">ink</span>$ Gemini ile Güçlendirildi
           </p>
-          <p className="text-[10px] font-mono text-slate-400">
-            <a href="https://www.thirdhand.com.tr" target="_blank" rel="noopener noreferrer" className="text-white hover:text-orange-400 underline underline-offset-4">thirdhand</a> AI tarafından yapılmıştır
-          </p>
+          <button 
+            onClick={() => setCurrentView(ViewMode.PRICING)}
+            className="text-[10px] font-mono text-slate-400 hover:text-white transition-colors"
+          >
+            Kullanım Şartları & Fiyatlandırma
+          </button>
         </div>
       </footer>
     </div>

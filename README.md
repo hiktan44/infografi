@@ -1,20 +1,99 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# Link2Ink Studio 🚀
 
-This contains everything you need to run your app locally.
+Link2Ink, karmaşık veri kaynaklarını (GitHub Repoları, Web Makaleleri, YouTube Videoları) saniyeler içinde **mobil öncelikli**, yüksek çözünürlüklü ve **okunabilir profesyonel infografiklere** dönüştüren gelişmiş bir Görsel Zeka Platformudur.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1e2mtg54gFfm27u_JeinmWPacw0fqUVb8
+## 🧠 Yapay Zeka Mimarisi & Modeller
 
-## Run Locally
+Bu proje, Google'ın en yeni nesil **Gemini** modellerini hibrit bir yapıda (Multimodal Pipeline) kullanır.
 
-**Prerequisites:**  Node.js
+### 1. Metin Analizi & Akıl Yürütme (`gemini-3-pro-preview`)
+Bu model, uygulamanın "Analitik Beyni" olarak çalışır.
+*   **Repo Analizi:** GitHub dosya ağacını (File Tree) tarar, mimari desenleri tanır ve teknik özet çıkarır.
+*   **YouTube Deep Grounding:** Video transkriptine ihtiyaç duymadan, Video ID'sini `Google Search Tool` ile çapraz sorgulayarak içeriği doğrular ve özetler.
+*   **İçerik Damıtma:** Uzun makaleleri; başlık, kritik istatistikler ve aksiyon maddelerine dönüştürür.
+*   **Thinking Config:** Karmaşık kod yapılarında "düşünme bütçesi" kullanarak daha derinlemesine analiz yapar.
 
+### 2. Görsel Üretim (`gemini-3-pro-image-preview`)
+Bu model, uygulamanın "Sanat Yönetmeni" olarak çalışır.
+*   **Tipografi Yeteneği:** Standart görsel modellerinin aksine, *okunabilir*, *doğru yazılmış* ve *yerleşimi düzgün* metinler içeren grafikler üretir.
+*   **Çözünürlük:** 2K (2048x2048) çözünürlükte net çıktılar sağlar.
+*   **Format Esnekliği:** Kullanıcının seçimine göre `16:9` (Yatay/Masaüstü) veya `9:16` (Dikey/Hikaye) formatında çalışır.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+---
+
+## 🌊 Uygulama Akış Şemaları
+
+### A. KodAkışı (Repo Analyzer)
+Kodu okumadan anlamayı sağlayan modül.
+
+```mermaid
+graph TD
+    A[Kullanıcı: GitHub Repo URL] --> B[GitHub API (Tree Fetch)]
+    B --> C{Veri İşleme}
+    C -->|Teknik Yapı| D[Gemini 3 Pro (Text)]
+    C -->|Görsel Kompozisyon| E[Gemini 3 Pro Image]
+    D --> F[Mimari Özet & Özellik Listesi]
+    E --> G[2K Mimari Diyagram / Ürün Posteri]
+    F & G --> H[UI: Split View Sonuç]
+```
+
+### B. VideoAnaliz (YouTube Deep Grounding)
+Videoyu izlemeden görselleştiren modül.
+
+```mermaid
+graph TD
+    A[Video URL / ID] --> B[Regex Ayrıştırıcı]
+    B --> C[Gemini 3 Pro (Thinking)]
+    C -->|Tool Call| D[Google Search Grounding]
+    D -->|Metadata, Snippets, Reviews| C
+    C -->|Yapılandırılmış Veri| E[Prompt Mühendisliği]
+    E --> F[Gemini 3 Pro Image]
+    F --> G[İnfografik Poster]
+```
+
+### C. İnfografikçi (Article to Ink)
+Web içeriğini görselleştiren modül.
+
+```mermaid
+graph TD
+    A[URL / Dosya / Metin] --> B[Gemini 3 Pro]
+    B -->|Search Tool| C[Google Search (Güncel Veri)]
+    B --> D[Veri Madenciliği (İstatistikler, Alıntılar)]
+    D --> E[Görsel Tasarım Promptu]
+    E --> F[Gemini 3 Pro Image]
+    F --> G[Final İnfografik]
+```
+
+## 🛠 Teknoloji Yığını
+
+*   **Frontend:** React 19, TypeScript, Vite
+*   **UI Framework:** Tailwind CSS (Glassmorphism & Neon Estetik)
+*   **AI SDK:** Google GenAI SDK (`@google/genai`)
+*   **Veri Görselleştirme:** D3.js (İnteraktif Node Grafikleri için)
+*   **İkon Seti:** Lucide React
+
+## 📦 Kurulum ve Çalıştırma
+
+1.  Proje dosyalarını indirin.
+2.  Gerekli paketleri yükleyin:
+    ```bash
+    npm install
+    ```
+3.  Geliştirme sunucusunu başlatın:
+    ```bash
+    npm run dev
+    ```
+4.  Uygulama başladığında, **Google AI Studio** entegrasyonu otomatik olarak devreye girecek ve sizden (Pro modelleri kullanabilmek için) faturalı bir projeye bağlı API anahtarını seçmenizi isteyecektir.
+
+## 🎨 Temel Özellikler
+
+*   **KodAkışı:** Repoları teknik diyagramlara veya "Ürün Tanıtım Posterlerine" dönüştürür.
+*   **İnfografikçi:** URL, PDF veya Metin girdilerini stilize edilmiş görsellere çevirir.
+*   **VideoAnaliz:** YouTube videolarını analiz edip görsel özet çıkarır.
+*   **Reality Engine:** Mevcut görselleri yükleyip stil transferi (örn: "Bunu Cyberpunk yap") ile yeniden çizer.
+*   **DevStudio:** Reponuzla sohbet etmenizi sağlayan interaktif D3.js grafiği.
+
+## 💎 Lisans
+
+Bu proje Apache-2.0 lisansı altında lisanslanmıştır.

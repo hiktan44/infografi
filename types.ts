@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -8,7 +9,9 @@ import { SimulationNodeDatum, SimulationLinkDatum } from 'd3';
 export enum ViewMode {
   HOME = 'HOME',
   REPO_ANALYZER = 'REPO_ANALYZER',
-  ARTICLE_INFOGRAPHIC = 'ARTICLE_INFOGRAPHIC'
+  ARTICLE_INFOGRAPHIC = 'ARTICLE_INFOGRAPHIC',
+  YOUTUBE_INFOGRAPHIC = 'YOUTUBE_INFOGRAPHIC',
+  PRICING = 'PRICING'
 }
 
 export interface D3Node extends SimulationNodeDatum {
