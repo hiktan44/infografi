@@ -80,6 +80,15 @@
 </head>
 <body class="text-slate-200 antialiased selection:bg-white/20 min-h-screen">
   <div id="root"></div>
+<script>
+  // AI Studio API shim for standalone deployment
+  window.aistudio = {
+    apiKey: 'AIzaSyChYozmsf_xo3UWfilSEubI2Bn6xa5-1Cw',
+    hasSelectedApiKey: async () => true,
+    openSelectKey: async () => true,
+    getSelectedApiKey: () => 'AIzaSyChYozmsf_xo3UWfilSEubI2Bn6xa5-1Cw'
+  };
+</script>
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>
