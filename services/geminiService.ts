@@ -25,8 +25,9 @@ const handleApiError = (error: any) => {
 };
 
 /**
- * YouTube İçerik Analizi - Deep Grounding & Verification Protokolü
- * Yanlış video veya demo içerik sorununu çözmek için 'site:' operatörü kullanılır.
+ * YouTube İçerik Analizi - Hibrit Protokol
+ * 1. Öncelik: Transkript ve Doğrudan İçerik Analizi.
+ * 2. Fallback: Google Search Deep Grounding (Eğer transkript erişilemezse).
  */
 export async function generateYoutubeInfographic(
   youtubeUrl: string,
@@ -36,7 +37,7 @@ export async function generateYoutubeInfographic(
   aspectRatio: "16:9" | "9:16" = "9:16"
 ): Promise<InfographicResult> {
     const ai = getAiClient();
-    if (onProgress) onProgress("VİDEO VERİLERİ SORGULANIYOR...");
+    if (onProgress) onProgress("VİDEO İÇERİĞİ VE TRANSKRİPT ANALİZ EDİLİYOR...");
 
     let structuralSummary = "";
     let citations: Citation[] = [];
@@ -50,15 +51,15 @@ export async function generateYoutubeInfographic(
     }
 
     try {
-        // PROMPT GÜNCELLEMESİ: DAHA DERİN ANALİZ VE NUANS
+        // PROMPT GÜNCELLEMESİ: TRANSCRIPT ÖNCELİKLİ HİBRİT YAPI
         const analysisPrompt = `ROLE: Expert Data Journalist & Instructional Designer.
         TASK: Deeply analyze the YouTube Video (ID: ${videoId}) for a high-density ${aspectRatio === "9:16" ? "Vertical Mobile" : "Horizontal"} Infographic.
         
         TARGET VIDEO: ${youtubeUrl}
         
-        INVESTIGATION PROTOCOL:
-        1.  **Grounding**: Search Google for "${youtubeUrl}", "${videoId} transcript", and "${videoId} summary" to get precise content.
-        2.  **Verification**: Cross-reference the video title/channel to ensure content accuracy.
+        INVESTIGATION PROTOCOL (PRIORITY ORDER):
+        1.  **PRIMARY (TRANSCRIPT/CONTENT)**: First, attempt to retrieve or access the actual spoken content/transcript of this video. If you have internal knowledge of this video or can access its captions via your tools, base the analysis STRICTLY on this direct data for maximum accuracy.
+        2.  **SECONDARY (SEARCH FALLBACK)**: ONLY if direct transcript access is impossible or data is insufficient, perform a Google Search for "${youtubeUrl}", "${videoId} transcript", and "${videoId} key takeaways" to reconstruct the content from external reviews and summaries.
         
         EXTRACTION REQUIREMENTS (${language}):
         Don't just summarize. Extract specific details, methodologies, and nuances.
@@ -71,7 +72,7 @@ export async function generateYoutubeInfographic(
         6.  **VISUAL CUES**: Suggest icons for the key points (e.g., "Use a Shield icon for security section").
         
         OUTPUT FORMAT (Strictly in ${language}):
-        Provide a structured, rich summary optimized for visual layout.`;
+        Provide a structured, rich summary optimized for visual layout. Indicate at the start whether you used "Direct Transcript" or "Search Fallback".`;
 
         const analysisResponse = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',

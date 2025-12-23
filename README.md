@@ -10,7 +10,7 @@ Bu proje, Google'ın en yeni nesil **Gemini** modellerini hibrit bir yapıda (Mu
 ### 1. Metin Analizi & Akıl Yürütme (`gemini-3-pro-preview`)
 Bu model, uygulamanın "Analitik Beyni" olarak çalışır.
 *   **Repo Analizi:** GitHub dosya ağacını (File Tree) tarar, mimari desenleri tanır ve teknik özet çıkarır.
-*   **YouTube Deep Grounding:** Video transkriptine ihtiyaç duymadan, Video ID'sini `Google Search Tool` ile çapraz sorgulayarak içeriği doğrular ve özetler.
+*   **VideoAnaliz (Hibrit):** Öncelikle **Video Transkriptini** ve doğrudan içeriği analiz etmeyi dener. Eğer erişilemezse, **Deep Grounding** moduna geçerek web üzerindeki verileri ve özetleri çapraz sorgular.
 *   **İçerik Damıtma:** Uzun makaleleri; başlık, kritik istatistikler ve aksiyon maddelerine dönüştürür.
 *   **Thinking Config:** Karmaşık kod yapılarında "düşünme bütçesi" kullanarak daha derinlemesine analiz yapar.
 
