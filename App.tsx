@@ -26,12 +26,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkKey = async () => {
-      if (window.aistudio && window.aistudio.hasSelectedApiKey) {
-        const has = await window.aistudio.hasSelectedApiKey();
-        setHasApiKey(has);
-      } else {
-        setHasApiKey(false);
-      }
+      // Check for API key from Vite environment variables or localStorage
+      const envKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      const localKey = localStorage.getItem('gemini_api_key');
+      const apiKey = envKey || localKey;
+      const has = !!apiKey && apiKey.length > 0;
+      setHasApiKey(has);
       setCheckingKey(false);
     };
     checkKey();

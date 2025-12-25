@@ -7,7 +7,18 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { RepoFileTree, Citation } from '../types';
 
-const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAiClient = () => {
+  // Check for API key from multiple sources
+  const envKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
+  const apiKey = envKey || localKey;
+
+  if (!apiKey) {
+    throw new Error('API key not found. Please configure your Gemini API key.');
+  }
+
+  return new GoogleGenAI({ apiKey });
+};
 
 export interface InfographicResult {
     imageData: string | null;
