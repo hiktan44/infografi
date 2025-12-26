@@ -88,16 +88,23 @@ export async function generateYoutubeInfographic(
 
         FULL URL: ${youtubeUrl}
 
+        ⚠️ CRITICAL FAILURE INSTRUCTIONS:
+        - If you CANNOT verify this video exists or CANNOT access its actual content, you MUST respond with exactly: "VERIYE_ULAŞILAMADI" and NOTHING ELSE.
+        - DO NOT generate mock data, DO NOT guess from the URL, DO NOT hallucinate content.
+        - If you cannot find the real video title, description, transcript, or any actual content, FAIL with "VERIYE_ULAŞILAMADI".
+        - General information about a topic is NOT acceptable - you need THIS SPECIFIC VIDEO's content.
+
         ⚠️ CRITICAL: You MUST analyze the video titled "${videoTitle || videoId}" above. Search Google specifically for this EXACT title and "${videoId}" to find transcripts, summaries, and analysis.
 
-        EXTRACTION REQUIREMENTS (${language}):
+        EXTRACTION REQUIREMENTS (${language}) - ONLY if video is successfully verified:
         1.  **THE CORE HOOK**: What is the single most compelling idea? (Max 10 words)
         2.  **DATA & METRICS**: Extract specific numbers, percentages, dates
         3.  **KEY TAKEAWAYS**: 3-5 main points from this specific video
         4.  **HIDDEN GEMS**: Counter-intuitive facts or "Insider Tips"
 
         OUTPUT FORMAT (Strictly in ${language}):
-        Provide a structured, rich summary optimized for visual layout.`;
+        If successful: Provide a structured, rich summary optimized for visual layout.
+        If failed: Respond with exactly "VERIYE_ULAŞILAMADI" and nothing else.`;
 
         const analysisResponse = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
@@ -110,6 +117,11 @@ export async function generateYoutubeInfographic(
 
         structuralSummary = analysisResponse.text || "";
 
+        // Check if AI failed to access the video content
+        if (structuralSummary.includes("VERIYE_ULAŞILAMADI") || structuralSummary.includes("VERIYE_ULASILAMADI")) {
+            throw new Error(`Video içeriğine ulaşılamadı: ${videoTitle || videoId}. Lütfen geçerli bir YouTube videosu deneyin.`);
+        }
+
         const chunks = analysisResponse.candidates?.[0]?.groundingMetadata?.groundingChunks;
         if (chunks) {
             chunks.forEach((chunk: any) => {
@@ -119,13 +131,18 @@ export async function generateYoutubeInfographic(
             });
         }
 
-        if (structuralSummary.length < 50) {
-             structuralSummary += `\n\n(Not: Bu video için kısıtlı veri mevcuttu. Görsel, mevcut meta veriler üzerinden oluşturuldu.)`;
+        // Validate that we got substantial content
+        if (structuralSummary.length < 100) {
+             throw new Error(`Video için yeterli veri bulunamadı: ${videoTitle || videoId}. İçerik çok kısa veya erişilemez.`);
         }
 
     } catch (e: any) {
-        console.warn("YouTube Deep Analysis Warning:", e.message);
-        structuralSummary = `Video ID: ${videoId}. Video içeriği tam olarak doğrulanamadı, ancak isteğiniz üzerine görselleştirme oluşturuluyor. Konu: YouTube İçerik Özeti.`;
+        console.warn("YouTube Analysis Error:", e.message);
+        // Re-throw if it's already a proper error, otherwise create a generic one
+        if (e.message.includes("ulaşılamadı") || e.message.includes("bulunamadı")) {
+            throw e;
+        }
+        throw new Error(`Video analiz edilemedi: ${e.message}`);
     }
 
     const imgResult = await finalizeInfographic(structuralSummary, style, onProgress, language, aspectRatio);
@@ -143,6 +160,11 @@ async function finalizeInfographic(
     language: string = "Turkish",
     aspectRatio: "16:9" | "9:16" = "9:16"
 ): Promise<InfographicResult> {
+    // Validate summary content before proceeding
+    if (!summary || summary.length < 50) {
+        throw new Error("İçerik yetersiz. Lütfen geçerli bir kaynak belirtin.");
+    }
+
     const ai = getAiClient();
     if (onProgress) onProgress("İNFOGRAFİK TASARLANIYOR (GEMINI 3 PRO)...");
 
@@ -156,6 +178,11 @@ async function finalizeInfographic(
     - Visual Style: ${style}
     - Language: ${language}
 
+    ⚠️ CRITICAL INSTRUCTIONS:
+    - Use ONLY the content provided above in "CONTENT SOURCE".
+    - DO NOT add fake data, DO NOT hallucinate statistics, DO NOT invent information.
+    - If the content is insufficient, create a minimal design stating "Veriye ulaşılamadı" (Could not reach data).
+
     LAYOUT RULES FOR RICH DATA:
     1.  **Information Architecture**:
         - If the data has steps, draw a **Flowchart** or **Path**.
@@ -166,7 +193,7 @@ async function finalizeInfographic(
     4.  **Color Theory**: High contrast. Dark text on light background or Neon on Dark (based on style: ${style}). Ensure text is legible.
     5.  **Density**: Avoid empty space. Fill the canvas with structured grids, icons, and data points.
 
-    OUTPUT: A complete, polished, ready-to-share infographic image.`;
+    OUTPUT: A complete, polished, ready-to-share infographic image based ONLY on provided content.`;
 
     try {
         const response = await ai.models.generateContent({
@@ -179,6 +206,11 @@ async function finalizeInfographic(
         });
         const parts = response.candidates?.[0]?.content?.parts;
         const imageData = parts?.find(p => p.inlineData)?.inlineData?.data || null;
+
+        if (!imageData) {
+            throw new Error("Görsel oluşturulamadı. Yetersiz içerik veya API hatası.");
+        }
+
         return { imageData, citations: [] };
     } catch (error) {
         return handleApiError(error);
@@ -201,7 +233,13 @@ export async function generateArticleInfographic(
     TASK: Analyze the following URL content to create a structured brief for a Mobile Infographic.
     URL: ${url}
 
-    INSTRUCTIONS:
+    ⚠️ CRITICAL FAILURE INSTRUCTIONS:
+    - If you CANNOT access this URL's content or the page does not exist, you MUST respond with exactly: "VERIYE_ULAŞILAMADI" and NOTHING ELSE.
+    - DO NOT generate mock data, DO NOT guess from the URL, DO NOT hallucinate content.
+    - If you cannot read the actual page content, FAIL with "VERIYE_ULAŞILAMADI".
+    - General information about a topic is NOT acceptable - you need THIS SPECIFIC PAGE's content.
+
+    INSTRUCTIONS - ONLY if URL is successfully accessible:
     Read the content and extract specific, high-value information. Do not just summarize abstractly.
 
     REQUIRED OUTPUT STRUCTURE (${language}):
@@ -212,7 +250,9 @@ export async function generateArticleInfographic(
     5.  **EXPERT INSIGHT**: Find a quote or a specific prediction mentioned in the text.
     6.  **PROS/CONS (if applicable)**: If the article compares things, list the distinct advantages and disadvantages.
 
-    Output strictly in ${language}.`;
+    OUTPUT FORMAT (Strictly in ${language}):
+    If successful: Provide the structured analysis as specified above.
+    If failed: Respond with exactly "VERIYE_ULAŞILAMADI" and nothing else.`;
 
     try {
         const analysisResponse = await ai.models.generateContent({
@@ -221,8 +261,22 @@ export async function generateArticleInfographic(
             config: { tools: [{ googleSearch: {} }] }
         });
         structuralSummary = analysisResponse.text || "";
-    } catch (e) {
-        structuralSummary = `${url} içeriği. Dil: ${language}.`;
+
+        // Check if AI failed to access the content
+        if (structuralSummary.includes("VERIYE_ULAŞILAMADI") || structuralSummary.includes("VERIYE_ULASILAMADI")) {
+            throw new Error(`Sayfa içeriğine ulaşılamadı: ${url}. Lütfen geçerli bir web sitesi URL'si deneyin.`);
+        }
+
+        // Validate that we got substantial content
+        if (structuralSummary.length < 100) {
+            throw new Error(`Sayfa için yeterli veri bulunamadı: ${url}. İçerik çok kısa veya erişilemez.`);
+        }
+    } catch (e: any) {
+        console.warn("Article Analysis Error:", e.message);
+        if (e.message.includes("ulaşılamadı") || e.message.includes("bulunamadı")) {
+            throw e;
+        }
+        throw new Error(`Sayfa analiz edilemedi: ${e.message}`);
     }
     const result = await finalizeInfographic(structuralSummary, style, onProgress, language, aspectRatio);
     return { ...result, analysisText: structuralSummary };
