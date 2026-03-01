@@ -1,5 +1,7 @@
 {
   "name": "Link2Ink Stüdyo Pro",
   "description": "Gemini 3 Pro destekli; Kod, Makale ve Videoları profesyonel infografiklere dönüştüren yapay zeka platformu.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
