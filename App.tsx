@@ -30,8 +30,9 @@ const App: React.FC = () => {
   const [initialViewData, setInitialViewData] = useState<any>(null);
 
   useEffect(() => {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    setHasApiKey(!!apiKey && apiKey.trim().length > 0);
+    const userKey = localStorage.getItem('gemini_api_key');
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    setHasApiKey(!!(userKey || (envKey && envKey.trim().length > 0)));
     setCheckingKey(false);
 
     const handleKeyReset = () => {
