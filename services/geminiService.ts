@@ -7,7 +7,12 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { RepoFileTree, Citation } from '../types';
 
-const getAiClient = () => new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const getApiKey = (): string => {
+    const userKey = localStorage.getItem('gemini_api_key');
+    return userKey || import.meta.env.VITE_GEMINI_API_KEY || '';
+};
+
+const getAiClient = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 export interface InfographicResult {
     imageData: string | null;
@@ -23,7 +28,14 @@ export interface PresentationOutline {
 
 const handleApiError = (error: any) => {
     console.error("Gemini API Error:", error);
-    if (error?.message?.includes("Requested entity was not found")) {
+    const msg = error?.message || '';
+    if (
+        msg.includes("Requested entity was not found") ||
+        msg.includes("API key expired") ||
+        msg.includes("API_KEY_INVALID") ||
+        msg.includes("API key not valid")
+    ) {
+        localStorage.removeItem('gemini_api_key');
         window.dispatchEvent(new CustomEvent('reset-api-key'));
     }
     throw error;
