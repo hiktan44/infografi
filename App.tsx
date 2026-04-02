@@ -30,9 +30,16 @@ const App: React.FC = () => {
   const [initialViewData, setInitialViewData] = useState<any>(null);
 
   useEffect(() => {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    setHasApiKey(!!apiKey && apiKey.trim().length > 0);
-    setCheckingKey(false);
+    const checkKey = async () => {
+      if (window.aistudio && window.aistudio.hasSelectedApiKey) {
+        const has = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(has);
+      } else {
+        setHasApiKey(false);
+      }
+      setCheckingKey(false);
+    };
+    checkKey();
 
     const handleKeyReset = () => {
         setHasApiKey(false);

@@ -7,7 +7,7 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { RepoFileTree, Citation } from '../types';
 
-const getAiClient = () => new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export interface InfographicResult {
     imageData: string | null;
@@ -33,15 +33,21 @@ const handleApiError = (error: any) => {
  * SUNUM TASLAĞI OLUŞTURUCU - Gemini 3 Flash Preview
  * Uses latest flash for high-speed research and outlining.
  */
-export async function generatePresentationOutline(topic: string, language: string = "Turkish"): Promise<PresentationOutline> {
+export async function generatePresentationOutline(
+    input: string, 
+    slideCount: number,
+    fileBase64?: string,
+    mimeType?: string,
+    language: string = "Turkish"
+): Promise<PresentationOutline> {
     const ai = getAiClient();
-    const prompt = `ROLE: Advanced Presentation Strategist.
-    TOPIC: ${topic}.
+    let prompt = `ROLE: Advanced Presentation Strategist.
+    INPUT TOPIC/CONTENT/URL: ${input}.
     LANGUAGE: ${language}.
     
     TASK: 
-    1. Research current data/trends on this topic using Google Search.
-    2. Create a high-impact presentation outline with 5-7 slides.
+    1. Analyze the provided input (topic, text, or URL). If it's a topic or URL, research current data/trends using Google Search.
+    2. Create a high-impact presentation outline with EXACTLY ${slideCount} slides.
     3. Each slide must have a title, short descriptive paragraph, 3 key bullet points, and a "visualPrompt" describing an image that would fit this slide (for an AI image generator).
     
     Format output strictly as JSON following this schema:
@@ -53,10 +59,17 @@ export async function generatePresentationOutline(topic: string, language: strin
     }
     `;
 
+    const parts: any[] = [];
+    if (fileBase64 && mimeType) {
+        parts.push({ inlineData: { data: fileBase64, mimeType } });
+        prompt += "\n\nAlso consider the attached file content for the presentation.";
+    }
+    parts.push({ text: prompt });
+
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: prompt,
+            contents: { parts },
             config: { 
                 tools: [{ googleSearch: {} }],
                 responseMimeType: "application/json",
@@ -80,7 +93,7 @@ export async function generatePresentationOutline(topic: string, language: strin
 }
 
 /**
- * SLAYT GÖRSELİ OLUŞTURUCU - Nano Banana (gemini-2.5-flash-image)
+ * SLAYT GÖRSELİ OLUŞTURUCU - Gemini 3.1 Flash Image Preview
  * Generates a visual background or key visual for a slide.
  */
 export async function generateSlideVisual(prompt: string, style: string = "Professional Modern"): Promise<string | null> {
@@ -91,7 +104,7 @@ export async function generateSlideVisual(prompt: string, style: string = "Profe
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
+            model: 'gemini-3.1-flash-image-preview',
             contents: { parts: [{ text: fullPrompt }] },
             config: { 
                 imageConfig: { aspectRatio: "16:9" }
@@ -305,6 +318,37 @@ export async function generateInfographic(
     config: { imageConfig: { aspectRatio, imageSize } }
   });
   return response.candidates[0].content.parts.find(p => p.inlineData)?.inlineData?.data || null;
+}
+
+export async function generatePurposeInfographic(
+  repoName: string, 
+  fileTree: RepoFileTree[], 
+  style: string, 
+  language: string = "Turkish",
+  aspectRatio: "16:9" | "9:16" = "16:9",
+  imageSize: "1K" | "2K" | "4K" = "1K"
+): Promise<string | null> {
+  const ai = getAiClient();
+  const limitedTree = fileTree.slice(0, 50).map(f => f.path).join(', ');
+  
+  const prompt = `A highly professional, educational infographic explaining the core purpose, main features, and use cases of the software project named "${repoName}". 
+  Style: ${style}. Language: ${language}. 
+  Make it visually engaging, easy to understand for both technical and non-technical audiences. 
+  Include icons, flowcharts, or diagrams that represent what the project does based on these files: ${limitedTree}.
+  High contrast, modern design, 4K Ultra HD resolution.`;
+
+  try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-image-preview',
+        contents: { parts: [{ text: prompt }] },
+        config: { imageConfig: { aspectRatio, imageSize } }
+      });
+      const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      return part?.inlineData?.data || null;
+  } catch (error) {
+      console.error("Purpose Infographic Error:", error);
+      return null;
+  }
 }
 
 export async function analyzeRepoFeatures(repoName: string, fileTree: RepoFileTree[], language: string = "Turkish"): Promise<string> {

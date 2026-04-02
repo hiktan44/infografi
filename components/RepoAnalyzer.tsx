@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { fetchRepoFileTree } from '../services/githubService';
 // Remove non-existent import generateRepoFunctionalInfographic
-import { generateInfographic, analyzeRepoFeatures } from '../services/geminiService';
+import { generateInfographic, analyzeRepoFeatures, generatePurposeInfographic } from '../services/geminiService';
 import { RepoFileTree, ViewMode, RepoHistoryItem, DataFlowGraph, D3Node, D3Link } from '../types';
 import { AlertCircle, Loader2, Layers, Box, Download, Sparkles, Command, Palette, Globe, Clock, Maximize, KeyRound, Smartphone, Monitor, Terminal, Code2, Cpu, Rocket, ChevronRight, Github, Info } from 'lucide-react';
 import { LoadingState } from './LoadingState';
@@ -39,6 +39,7 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
   const [loadingStage, setLoadingStage] = useState<string>('');
   
   const [infographicData, setInfographicData] = useState<string | null>(null);
+  const [purposeInfographicData, setPurposeInfographicData] = useState<string | null>(null);
   const [repoFeatures, setRepoFeatures] = useState<string | null>(null);
   const [currentFileTree, setCurrentFileTree] = useState<RepoFileTree[] | null>(null);
   const [currentRepoName, setCurrentRepoName] = useState<string>('');
@@ -104,6 +105,7 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
     e.preventDefault();
     setError(null);
     setInfographicData(null);
+    setPurposeInfographicData(null);
     setRepoFeatures(null);
     setGraphData(null);
 
@@ -124,13 +126,15 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
       setLoadingStage('MİMARİ YAPAY ZEKA TARAFINDAN ÇÖZÜMLENİYOR');
       
       // Force "is3D" to be true for the requested dark 3D effect
-      const [imgData, featuresText] = await Promise.all([
+      const [imgData, featuresText, purposeImgData] = await Promise.all([
           generateInfographic(repoDetails.repo, fileTree, selectedStyle, true, selectedLanguage, aspectRatio, imageSize),
-          analyzeRepoFeatures(repoDetails.repo, fileTree, selectedLanguage)
+          analyzeRepoFeatures(repoDetails.repo, fileTree, selectedLanguage),
+          generatePurposeInfographic(repoDetails.repo, fileTree, selectedStyle, selectedLanguage, aspectRatio, imageSize)
       ]);
 
       if (imgData) {
           setInfographicData(imgData);
+          setPurposeInfographicData(purposeImgData);
           setRepoFeatures(featuresText);
           const generatedGraph = generateLocalGraphData(repoDetails.repo, fileTree);
           setGraphData(generatedGraph);
@@ -237,7 +241,7 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
       {loading && <div className="py-20"><LoadingState message={loadingStage} type="repo" /></div>}
 
       {infographicData && !loading && (
-        <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
+        <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 space-y-12">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-1 space-y-6">
                 <div className="glass-panel rounded-[2.5rem] p-8 bg-slate-950/50 border border-white/10 shadow-xl space-y-8">
@@ -287,6 +291,26 @@ const RepoAnalyzer: React.FC<RepoAnalyzerProps> = ({ onNavigate, history, onAddT
                   </div>
               </div>
           </div>
+
+          {purposeInfographicData && (
+              <div className="glass-panel rounded-[3rem] p-8 bg-white/5 border border-white/20 shadow-2xl relative group">
+                  <div className="absolute top-12 right-12 flex gap-3 z-10">
+                      <button onClick={() => setFullScreenImage({src: `data:image/png;base64,${purposeInfographicData}`, alt: "Proje Amacı İnfografiği"})} className="p-4 bg-black/60 backdrop-blur-md rounded-2xl text-white border border-white/10 hover:bg-orange-600 transition-all">
+                          <Maximize className="w-6 h-6" />
+                      </button>
+                      <a href={`data:image/png;base64,${purposeInfographicData}`} download={`${currentRepoName}-amaci.png`} className="p-4 bg-white text-slate-950 rounded-2xl font-black hover:bg-orange-600 hover:text-white transition-all">
+                          <Download className="w-6 h-6" />
+                      </a>
+                  </div>
+                  <div className="text-center mb-8">
+                      <h3 className="text-3xl font-black text-white uppercase tracking-tight">Projenin Amacı ve İşlevi</h3>
+                      <p className="text-slate-400 mt-2 font-mono text-sm">Bu depo ne işe yarıyor ve temel özellikleri neler?</p>
+                  </div>
+                  <div className={`rounded-[2rem] overflow-hidden bg-white mx-auto shadow-2xl ${aspectRatio === "9:16" ? "max-w-sm" : "max-w-full"}`}>
+                      <img src={`data:image/png;base64,${purposeInfographicData}`} alt="Proje Amacı" className="w-full h-auto block" />
+                  </div>
+              </div>
+          )}
         </div>
       )}
 
